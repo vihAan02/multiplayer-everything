@@ -38,10 +38,21 @@ Each adapter is one mod per game, built on that game's official mod loader. It:
 - applies incoming hits, chat and emotes to the local player.
 
 ### 2.3 Relay
-- A small hosted service on Fly.io. It matches pairing codes and forwards messages.
+The relay runs on **Cloudflare Workers with Durable Objects**, which needs no server to run and starts on the free plan.
+- A Worker accepts the WebSocket and routes it, using the pairing code, to **one Durable Object per room**.
+- The room's Durable Object holds both players' connections and forwards each message to the other player.
+- It uses the WebSocket Hibernation API, so time is billed only while a message is being handled.
 - Two players per room in v1. Rooms expire after 12 hours.
 - It stores nothing beyond the live session.
-- Direct peer-to-peer connections are a later optimization.
+
+**Free-plan budget:**
+- Cloudflare allows 100,000 requests a day. Incoming WebSocket messages count at 20:1, and outgoing ones are free.
+- At 10 relay messages a second per player (see 3, Transport), one room uses about 3,600 requests an hour, so the free plan covers **about 28 hours of play a day**, across all rooms.
+- Beyond that, the $5/month Workers Paid plan costs about $0.0005 per extra room-hour.
+
+**When the daily limit is reached:** new requests fail until 00:00 UTC. The app then shows "relay busy, try later" rather than crashing.
+
+**Later optimization:** connect players directly with WebRTC. Cloudflare's STUN service is free and unlimited, and its TURN fallback includes 1,000 GB a month free. Most sessions would then skip the relay.
 
 ### 2.4 Multiplayer protocol v1
 The protocol is game-neutral: each adapter translates its own game to and from it. N adapters work with each other without N² one-off bridges.
@@ -50,7 +61,7 @@ The protocol is game-neutral: each adapter translates its own game to and from i
 
 ### Transport
 - **Mod ↔ app:** WebSocket on `127.0.0.1` with a per-session token. The app writes the port and token into the game profile at launch.
-- **App ↔ relay:** WSS.
+- **App ↔ relay:** WSS. Adapters send poses 20 times a second, and the daemon bundles two poses into each relay message, so each player sends 10 relay messages a second. Events are sent immediately. Smoothing (below) hides the bundling.
 
 ### Messages (JSON)
 | Message | Fields |

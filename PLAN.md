@@ -7,7 +7,7 @@ Units are **engineer-days for one person working with coding agents**, given as 
 | # | Package | Days |
 |---|---|---|
 | W1 | Protocol schema, axes doc, fake test partner | 2–3 |
-| W2 | Relay: rooms, codes, limits, Fly.io deploy | 2–3 |
+| W2 | Relay on Cloudflare Workers and Durable Objects: rooms, codes, limits, a "relay busy" state | 2–3 |
 | W3 | Daemon and CLI: local socket, relay client, validation, `doctor` | 3–4 |
 | W4 | Minecraft adapter (Fabric) | 5–7 |
 | W5 | Second-game adapter: Terraria **5–7**, or Stardew Valley **4–6** | 4–7 |
@@ -21,6 +21,8 @@ Units are **engineer-days for one person working with coding agents**, given as 
 | W12 | Public release: registry signing, Windows app and signing, docs and site | 4–6 |
 | | **Phase 2: Covalent, any game, public** | **17–26** |
 | | **Total** | **43–63** |
+
+**Later, not in the totals:** direct WebRTC connections, using Cloudflare STUN with a TURN fallback, so most sessions skip the relay (about 2–3 days).
 
 The second-game choice moves the total by about a day. Stardew Valley is a little less work, because there's no combat feel to tune. Terraria makes the better demo.
 
@@ -54,7 +56,7 @@ Build it with Covalent, so the build is itself the showcase: each work package i
 ## Costs (check current prices)
 
 - **Apple Developer Program:** about $99 a year. Without notarization the download shows a Gatekeeper warning, so the easy download depends on it.
-- **Fly.io relay:** a few dollars a month.
+- **Relay:** $0 on Cloudflare's free plan, which covers about 28 hours of play a day across all rooms. Above that, the $5/month Workers Paid plan costs about $0.0005 per extra room-hour.
 - **Windows code signing (phase 2):** roughly $10 a month.
 - **Coding agents:** each person's own subscription.
 
@@ -64,6 +66,7 @@ Build it with Covalent, so the build is itself the showcase: each work package i
 - **Testing inside the game is slow and needs a human.** The fake partner (W1) and `test --peer` (W9) take most of it off people.
 - **W11 can blow past its estimate.** A 3D Windows game under CrossOver is the riskiest package, but it's in phase 2 and the MVP doesn't need it.
 - **Notarization setup** takes time on the first release.
+- **The relay's free daily limit:** once 100,000 requests are used, new ones fail until 00:00 UTC. The app shows "relay busy", and moving to the paid plan takes minutes if a launch takes off.
 - **Model refusals:** low risk. Every MVP adapter uses an official mod API, not reverse engineering.
 
 ## Open decisions
