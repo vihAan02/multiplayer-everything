@@ -9,11 +9,11 @@ You play Minecraft on your Mac, and a friend plays another game on theirs. You s
 
 **What's new here:**
 - multiplayer between two *different* games on two *different* machines;
-- one signed download;
+- one free download (a DMG from GitHub Releases or the website);
 - a protocol that lets any adapted game meet any other.
 
 ### User flow
-1. Download the app and open it. It's notarized, so macOS shows no warning.
+1. Download the DMG, drag the app into Applications, and open it. The first time, macOS blocks it because it isn't notarized. The setup guide shows the one-time fix: System Settings → Privacy & Security → **Open Anyway**, then your password.
 2. The app lists your games, for example: "Minecraft Java: ready", "Terraria: ready".
 3. Click **Install** next to your game. The adapter goes into a separate game profile, and your own worlds are never touched.
 4. One player clicks **Host** and gets a code like `amber-otter-42`. The other clicks **Join** and types it.
@@ -30,6 +30,19 @@ You play Minecraft on your Mac, and a friend plays another game on theirs. You s
 - **Run:** a daemon carries the traffic between your game and the relay. The UI is a local web page the daemon serves.
 - **CLI:** `multiplayer install | doctor | host | join | test | remove`. `doctor --json` is machine-readable, so agents can use it.
 - **Stack:** TypeScript, compiled to one binary. No Electron.
+
+### 2.1a Distribution (no Apple Developer account)
+- **Where:** a DMG on **GitHub Releases**, with a download page and setup guide on a free Vercel site.
+- **Signing:** the app is not notarized, but it is **ad-hoc signed** (`codesign --sign - --force`), because Apple Silicon won't run unsigned code at all. Packaging edits the binary after linking, which breaks the linker's signature, so the build re-signs as its last step and checks with `codesign --verify`.
+- **First launch:** macOS blocks the app once.
+  - The guide walks through Apple's documented route, with screenshots for each supported macOS version: try to open the app, go to System Settings → Privacy & Security → Open Anyway (available for about an hour after the blocked attempt), then enter your password.
+  - Control-click → Open no longer bypasses the block on recent macOS, so the guide doesn't rely on it.
+- **What the guide never tells people to do:** disable Gatekeeper system-wide, run `sudo` commands, or strip quarantine from anything except this one app.
+- **Trust, in place of notarization:**
+  - Releases are built only in GitHub Actions, and SHA-256 checksums are published next to each DMG.
+  - Once the repo is public, the build also gets GitHub artifact attestations, so anyone can check where it came from (`gh attestation verify`).
+  - The guide says to download only from the official release page or the website.
+- **Windows (phase 2):** the same approach. The exe is unsigned, and the guide covers SmartScreen's "More info → Run anyway".
 
 ### 2.2 Adapters
 Each adapter is one mod per game, built on that game's official mod loader. It:
@@ -127,7 +140,7 @@ harness access grant --agent <me>/lead --workspace ~/multiplayer-everything --co
 
 The trusted `multiplayer` tool is what writes into game folders, with backups. The agent never edits game files directly.
 
-1. Each agent runs `multiplayer doctor --json` and installs its own side.
+1. Each agent downloads the release and verifies its checksum. It then asks its owner to do the one-time Open Anyway step, which stays a human click. After that it runs `multiplayer doctor --json` and installs its own side.
 2. The two agents agree on who hosts and pass the pairing code by Covalent message.
 3. They run `multiplayer test --peer`: each adapter spawns test stand-ins at known positions and reports what it drew.
 4. The agents fix misalignments (a flipped axis, wrong scale) without anyone driving a screen.
@@ -141,7 +154,8 @@ An **Adapter Kit** provides:
 The agent on the machine that owns the new game builds the adapter, and the friend's agent is the test partner from the other machine. A passing adapter goes to the signed registry, and the next person gets one-click install.
 
 ## 6. Safety
-- The app is notarized, and the adapter index is signed (ed25519), with checksums on every download. Fake "mashup" repos have been used to spread malware, so provenance matters.
+- The app is built in CI, ad-hoc signed and published with checksums (plus attestations once public). The adapter index is signed (ed25519), with checksums on every download.
+- Fake "mashup" repos have been used to spread malware. An unsigned app whose guide explains how to get past macOS's block is easy to imitate, so the guide names the only official download locations.
 - Mods listen only on the local machine, and only with the session token.
 - Adapters install into separate profiles. Uninstall is verified by checksum.
 - Offline or self-hosted only, with a blocklist of games that have anti-cheat.
@@ -150,7 +164,7 @@ The agent on the machine that owns the new game builds the adapter, and the frie
 ## 7. Acceptance
 
 ### MVP
-1. On a fresh Mac: download → open with no Gatekeeper warning → install → pair → see the other player, all within 5 minutes.
+1. On a fresh Mac: download → the one-time Open Anyway step, following the guide → install → pair → see the other player, all within 5 minutes.
 2. The friend's movement looks smooth over home internet through the relay (target ≤250 ms perceived delay).
 3. Hits, chat and emotes work in both directions.
 4. Uninstall leaves both games byte-identical to before.
